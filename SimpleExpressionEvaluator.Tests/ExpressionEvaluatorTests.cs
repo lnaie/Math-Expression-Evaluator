@@ -164,17 +164,17 @@ namespace SimpleExpressionEvaluator.Tests
 		public void Supports_Signed_Operands()
 		{
 			Assert.Equal(
-				_dynamicEngine.Evaluate("(+2.71*-1) * -34.1"),
+				_dynamicEngine.Evaluate("(+2.71 * -1) * -34.1"),
 				(decimal)((+2.71*-1) * -34.1)
 			);
 
 			Assert.Equal(
-				_dynamicEngine.Evaluate("+148.8898 +(-3.1481*0)-(12.30/-10)"),
+				_dynamicEngine.Evaluate("+148.8898 +(-3.1481*0) - (12.30/-10)"),
 				(decimal)(+148.8898 + (-3.1481 * 0) - (12.30 / -10))
 			);
 
 			Assert.Equal(
-				_dynamicEngine.Evaluate("-148.8898+(-3.1481*1*0) - (-15.2888*1)+ (+2*0*1)-(+2.71*-1) *-34.1"),
+				_dynamicEngine.Evaluate("-148.8898+(-3.1481*1*0) - (-15.2888*1)+ (+2*0*1)-(+2.71 * -1) *-34.1"),
 				(decimal)(-148.8898 + (-3.1481 * 1 * 0) - (-15.2888 * 1) + (+2 * 0 * 1) - (+2.71 * -1) * -34.1)
 			);
 		}

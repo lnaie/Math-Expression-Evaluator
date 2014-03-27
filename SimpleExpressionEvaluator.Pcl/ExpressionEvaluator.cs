@@ -156,42 +156,6 @@ namespace SimpleExpressionEvaluator
 			return (char) 0;
 		}
 
-//		private bool CreateSignedOperands(StringReader reader, char operation)
-//		{
-//			var peek = reader.Peek();
-//			if (peek > 0)
-//			{
-//				var next = (char) peek;
-//
-//				// Starts with signed operand?
-//				if (char.IsDigit(next) && (operation == '+' || operation == '-') && expressionStack.Count == 0)
-//				{
-//					expressionStack.Push(ReadOperand(reader, (operation == '-')));
-//					return true;
-//				}
-//
-//				// Next char is an operation too?
-//				if (Operation.IsDefined(next))
-//				{
-//					// That follows one of:
-//					if (operation == '(' || operation == '*' || operation == '/')
-//					{
-//						var nextOperation = (Operation) next;
-//						if (nextOperation == Operation.Addition || nextOperation == Operation.Subtraction)
-//						{
-//							// Save this operation, and next should be a signed operand
-//							operatorStack.Push(operation);
-//							reader.Read();
-//							expressionStack.Push(ReadOperand(reader, (nextOperation == Operation.Subtraction)));
-//							return true;
-//						}
-//					}
-//				}
-//			}
-//
-//			return false;
-//		}
-
 		private Dictionary<string, decimal> ParseArguments(object argument)
 		{
 			if (argument == null)
