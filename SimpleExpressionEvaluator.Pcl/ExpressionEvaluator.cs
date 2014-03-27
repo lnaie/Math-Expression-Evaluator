@@ -34,6 +34,13 @@ namespace SimpleExpressionEvaluator
 			return Evaluate(expression, arguments);
 		}
 
+		public decimal Evaluate(string expression, Dictionary<string, decimal> arguments)
+		{
+			var compiled = Parse(expression);
+
+			return Execute(compiled, arguments);
+		}
+
 		private Func<decimal[], decimal> Parse(string expression)
 		{
 			if (string.IsNullOrWhiteSpace(expression))
@@ -49,7 +56,8 @@ namespace SimpleExpressionEvaluator
 
 			using (var reader = new StringReader(expression))
 			{
-				int peek;
+				int peek; char prevChar = '\0';
+
 				while ((peek = reader.Peek()) > -1)
 				{
 					var next = (char)peek;
@@ -57,12 +65,16 @@ namespace SimpleExpressionEvaluator
 					if (char.IsDigit(next))
 					{
 						expressionStack.Push(ReadOperand(reader));
+
+						prevChar = next;
 						continue;
 					}
 
 					if (char.IsLetter(next))
 					{
 						expressionStack.Push(ReadParameter(reader, arrayParameter));
+
+						prevChar = next;
 						continue;
 					}
 
@@ -70,10 +82,30 @@ namespace SimpleExpressionEvaluator
 					{
 						var currentOperation = ReadOperation(reader);
 
-						EvaluateWhile(() => operatorStack.Count > 0 && operatorStack.Peek() != '(' &&
+						// Workaround: handle operands sign
+						if (currentOperation == Operation.Subtraction || currentOperation == Operation.Addition)
+						{
+							var nextChar = PeekNextChar(reader);
+							if (char.IsDigit(nextChar))
+							{
+								if (prevChar == '\0' || prevChar == '*' || prevChar == '/' || prevChar == '(')
+								{
+									expressionStack.Push(ReadOperand(reader, (currentOperation == Operation.Subtraction)));
+
+									prevChar = nextChar;
+									continue;
+								}
+							}
+						}
+
+						EvaluateWhile(() => 
+							operatorStack.Count > 0 && 
+							operatorStack.Peek() != '(' && 
 							currentOperation.Precedence <= ((Operation)operatorStack.Peek()).Precedence);
 
 						operatorStack.Push(next);
+
+						prevChar = next;
 						continue;
 					}
 
@@ -81,6 +113,8 @@ namespace SimpleExpressionEvaluator
 					{
 						reader.Read();
 						operatorStack.Push('(');
+
+						prevChar = next;
 						continue;
 					}
 
@@ -89,17 +123,19 @@ namespace SimpleExpressionEvaluator
 						reader.Read();
 						EvaluateWhile(() => operatorStack.Count > 0 && operatorStack.Peek() != '(');
 						operatorStack.Pop();
+
+						prevChar = next;
 						continue;
 					}
 
 					if (next == ' ')
 					{
+						// Don't track space as previous char
 						reader.Read();
 					}
 					else
 					{
-						throw new ArgumentException(string.Format("Encountered invalid character {0}", next),
-							"expression");
+						throw new ArgumentException(string.Format("Encountered invalid character {0}", next), "expression");
 					}
 				}
 			}
@@ -110,6 +146,51 @@ namespace SimpleExpressionEvaluator
 			var compiled = lambda.Compile();
 			return compiled;
 		}
+
+		char PeekNextChar(StringReader reader)
+		{
+			var peek = reader.Peek();
+			if (peek > 0)
+				return (char) peek;
+
+			return (char) 0;
+		}
+
+//		private bool CreateSignedOperands(StringReader reader, char operation)
+//		{
+//			var peek = reader.Peek();
+//			if (peek > 0)
+//			{
+//				var next = (char) peek;
+//
+//				// Starts with signed operand?
+//				if (char.IsDigit(next) && (operation == '+' || operation == '-') && expressionStack.Count == 0)
+//				{
+//					expressionStack.Push(ReadOperand(reader, (operation == '-')));
+//					return true;
+//				}
+//
+//				// Next char is an operation too?
+//				if (Operation.IsDefined(next))
+//				{
+//					// That follows one of:
+//					if (operation == '(' || operation == '*' || operation == '/')
+//					{
+//						var nextOperation = (Operation) next;
+//						if (nextOperation == Operation.Addition || nextOperation == Operation.Subtraction)
+//						{
+//							// Save this operation, and next should be a signed operand
+//							operatorStack.Push(operation);
+//							reader.Read();
+//							expressionStack.Push(ReadOperand(reader, (nextOperation == Operation.Subtraction)));
+//							return true;
+//						}
+//					}
+//				}
+//			}
+//
+//			return false;
+//		}
 
 		private Dictionary<string, decimal> ParseArguments(object argument)
 		{
@@ -127,13 +208,6 @@ namespace SimpleExpressionEvaluator
 				property => Convert.ToDecimal(property.GetValue(argument, null)));
 
 			return arguments;
-		}
-
-		internal decimal Evaluate(string expression, Dictionary<string, decimal> arguments)
-		{
-			var compiled = Parse(expression);
-
-			return Execute(compiled, arguments);
 		}
 
 		private decimal Execute(Func<decimal[], decimal> compiled, Dictionary<string, decimal> arguments)
@@ -158,7 +232,6 @@ namespace SimpleExpressionEvaluator
 			return compiled(values);
 		}
 
-
 		private void EvaluateWhile(Func<bool> condition)
 		{
 			while (condition())
@@ -170,7 +243,7 @@ namespace SimpleExpressionEvaluator
 			}
 		}
 
-		private Expression ReadOperand(TextReader reader)
+		private Expression ReadOperand(TextReader reader, bool negative = false)
 		{
 			var operand = string.Empty;
 
@@ -180,7 +253,10 @@ namespace SimpleExpressionEvaluator
 			{
 				var next = (char)peek;
 
-				if (char.IsDigit(next) || next == '.')
+				if (char.IsDigit(next) || 
+					next == '.' || 
+					next == 'e' || next == 'E' ||
+					((next == '-' || next == '+') && operand.EndsWith("e", StringComparison.OrdinalIgnoreCase)))
 				{
 					reader.Read();
 					operand += next;
@@ -191,7 +267,10 @@ namespace SimpleExpressionEvaluator
 				}
 			}
 
-			return Expression.Constant(decimal.Parse(operand));
+			if (operand.IndexOf("e", StringComparison.OrdinalIgnoreCase) >= 0)
+				return Expression.Constant((decimal)(double.Parse(operand) * (negative ? -1 : 1)));
+			else
+				return Expression.Constant((decimal.Parse(operand) * (negative ? -1 : 1)));
 		}
 
 		private Operation ReadOperation(TextReader reader)

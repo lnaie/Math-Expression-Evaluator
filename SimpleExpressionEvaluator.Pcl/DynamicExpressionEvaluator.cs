@@ -4,8 +4,10 @@ using System.Dynamic;
 
 namespace SimpleExpressionEvaluator
 {
-	public class DynamicExpressionEvaluator: DynamicObject
+	public class DynamicExpressionEvaluator : DynamicObject
 	{
+		#region Construction
+
 		readonly ExpressionEvaluator _evaluator;
 
 		public DynamicExpressionEvaluator()
@@ -13,6 +15,19 @@ namespace SimpleExpressionEvaluator
 			_evaluator = new ExpressionEvaluator();
 		}
 
+		#endregion
+
+		public ExpressionEvaluator Evaluator { get { return _evaluator; } }
+
+		public decimal Evaluate(string expression, object argument = null)
+		{
+			return _evaluator.Evaluate(expression, argument);
+		}
+
+		public Func<object, decimal> Compile(string expression)
+		{
+			return _evaluator.Compile(expression);
+		}
 
 		public override bool TryInvokeMember(InvokeMemberBinder binder, object[] args, out object result)
 		{
@@ -26,8 +41,8 @@ namespace SimpleExpressionEvaluator
 				throw new ArgumentException("No expression specified for parsing");
 			}
 
-			//args will contain expression and arguments,
-			//ArgumentNames will contain only named arguments
+			// args will contain expression and arguments,
+			// ArgumentNames will contain only named arguments
 			if (args.Length != binder.CallInfo.ArgumentNames.Count + 1)
 			{
 				throw new ArgumentException("Argument names missing.");
