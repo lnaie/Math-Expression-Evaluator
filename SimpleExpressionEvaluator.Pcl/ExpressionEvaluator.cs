@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Globalization;
 
 namespace SimpleExpressionEvaluator
 {
@@ -165,11 +166,13 @@ namespace SimpleExpressionEvaluator
 
 			var argumentType = argument.GetType();
 
-			var properties = argumentType.GetProperties(BindingFlags.Instance | BindingFlags.Public)
+			var properties = argumentType
+				.GetProperties(BindingFlags.Instance | BindingFlags.Public)
 				.Where(p => p.CanRead && IsNumeric(p.PropertyType));
 
-			var arguments = properties.ToDictionary(property => property.Name,
-				property => Convert.ToDecimal(property.GetValue(argument, null)));
+			var arguments = properties.ToDictionary(
+				property => property.Name, 
+				property => Convert.ToDecimal(property.GetValue(argument, null), CultureInfo.InvariantCulture));
 
 			return arguments;
 		}
@@ -180,8 +183,7 @@ namespace SimpleExpressionEvaluator
 
 			if (parameters.Count != arguments.Count)
 			{
-				throw new ArgumentException(string.Format("Expression contains {0} parameters but got only {1}",
-					parameters.Count, arguments.Count));
+				throw new ArgumentException(string.Format("Expression contains {0} parameters but got only {1}", parameters.Count, arguments.Count));
 			}
 
 			var missingParameters = parameters.Where(p => !arguments.ContainsKey(p)).ToList();
@@ -191,8 +193,9 @@ namespace SimpleExpressionEvaluator
 				throw new ArgumentException("No values provided for parameters: " + string.Join(",", missingParameters));
 			}
 
-			var values = parameters.Select(parameter => arguments[parameter]).ToArray();
-
+			var values = parameters
+				.Select(parameter => arguments[parameter])
+				.ToArray();
 			return compiled(values);
 		}
 
@@ -232,9 +235,9 @@ namespace SimpleExpressionEvaluator
 			}
 
 			if (operand.IndexOf("e", StringComparison.OrdinalIgnoreCase) >= 0)
-				return Expression.Constant((decimal)(double.Parse(operand) * (negative ? -1 : 1)));
+				return Expression.Constant((decimal)(double.Parse(operand, CultureInfo.InvariantCulture) * (negative ? -1 : 1)));
 			else
-				return Expression.Constant((decimal.Parse(operand) * (negative ? -1 : 1)));
+				return Expression.Constant((decimal.Parse(operand, CultureInfo.InvariantCulture) * (negative ? -1 : 1)));
 		}
 
 		private Operation ReadOperation(TextReader reader)
